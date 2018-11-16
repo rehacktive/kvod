@@ -1,5 +1,6 @@
-## KVoD [Key/Value on Disk], a simple, encrypted key/value storage for Go
+## KVoD [Key/Value on Disk]
 
+KVoD is a simple, embedded, encrypted key/value storage for Go. 
 Just a sample:
 ```golang
 type User struct {
