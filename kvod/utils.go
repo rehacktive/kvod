@@ -6,18 +6,16 @@ import (
 	"encoding/gob"
 	"io/ioutil"
 	"os"
-	"reflect"
 )
 
-func serialize(data interface{}) ([]byte, error) {
+func serialize[T any](data T) ([]byte, error) {
 	var buffer bytes.Buffer
 	enc := gob.NewEncoder(&buffer)
 	err := enc.Encode(data)
 	return buffer.Bytes(), err
 }
 
-func deserialize(data []byte, ret interface{}) error {
-	reflect.ValueOf(ret)
+func deserialize[T any](data []byte, ret T) error {
 	var buffer bytes.Buffer
 	buffer.Write(data)
 	dec := gob.NewDecoder(&buffer)

@@ -1,137 +1,180 @@
 package kvod
 
-import (
-	"os"
-	"path/filepath"
-	"reflect"
-	"strconv"
-	"testing"
-)
+// import (
+// 	"fmt"
+// 	"os"
+// 	"path/filepath"
+// 	"reflect"
+// 	"strconv"
+// 	"testing"
+// )
 
-type User struct {
-	Name  string
-	Email string
-}
+// type User struct {
+// 	Name  string
+// 	Email string
+// }
 
-const (
-	path     = "/tmp/kvod_test"
-	password = "whatever"
-	n        = 10
-)
+// const (
+// 	path     = "/tmp/kvod_test"
+// 	password = "whatever"
+// 	n        = 10
+// )
 
-func TestInit(t *testing.T) {
-	os.RemoveAll(path)
+// // TODO TEST FOR CONCURRENCY
+// func TestConcurrency(t *testing.T) {
+// 	kvod := Init(path, password)
 
-	// repeat it twice, so second time will not create salt again
-	for i := 0; i <= 1; i++ {
-		kvod := Init(path, password)
-		if kvod == nil {
-			t.Error("error init kvod")
-		}
-		if kvod.path != path {
-			t.Errorf("error kvod path: expected %x found %x", path, kvod.path)
-		}
-		// check that .salt file exists
-		saltFile := filepath.Join(path, saltFilename)
-		if _, err := os.Stat(saltFile); os.IsNotExist(err) {
-			t.Error("error .salt file not found")
-		}
-	}
-}
+// 	//c := make(chan int)
 
-func TestPutAndGet(t *testing.T) {
-	kvod := Init(path, password)
+// 	var maxval = 100
+// 	var incr = 0
 
-	sampleUser := User{"test user", "test@user.org"}
+// 	for incr = 0; incr <= maxval; incr++ {
+// 		go func(v int) {
+// 			err := kvod.Put("key", v)
+// 			if err != nil {
+// 				t.Error("error Put ", err)
+// 			}
+// 			fmt.Printf("send on channel: %v\n", v)
+// 			//c <- v
+// 		}(incr)
+// 	}
 
-	err := kvod.Put("1", sampleUser)
-	if err != nil {
-		t.Error("error Put ", err)
-	}
+// 	fmt.Println(incr)
 
-	var user User
-	err = kvod.Get("1", &user)
-	if err != nil {
-		t.Error("error Get ", err)
-	}
-	if !reflect.DeepEqual(sampleUser, user) {
-		t.Errorf("error put/get: expected %v found %v", sampleUser, user)
-	}
-}
+// 	// for {
+// 	// 	if incr == maxval {
+// 	// 		//close(c)
 
-func TestGetKeys(t *testing.T) {
-	kvod := Init(path, password)
+// 	// 		var ret int
+// 	// 		err := kvod.Get("key", &ret)
+// 	// 		if err != nil {
+// 	// 			t.Error("error Get ", err)
+// 	// 		}
+// 	// 		// if x != maxval {
+// 	// 		// 	t.Errorf("error : last item arrived is %v", x)
+// 	// 		// }
+// 	// 		if ret != maxval {
+// 	// 			t.Errorf("error put/get: expected %v found %v", maxval, ret)
+// 	// 		}
+// 	// 		return
+// 	// 	}
+// 	// }
+// }
 
-	sampleUser := User{"test user", "test@user.org"}
+// func TestInit(t *testing.T) {
+// 	os.RemoveAll(path)
 
-	for i := 0; i < n; i++ {
-		kvod.Put(strconv.Itoa(i), sampleUser)
-	}
+// 	// repeat it twice, so second time will not create salt again
+// 	for i := 0; i <= 1; i++ {
+// 		kvod := Init(path, password)
+// 		if kvod == nil {
+// 			t.Error("error init kvod")
+// 		}
+// 		if kvod.path != path {
+// 			t.Errorf("error kvod path: expected %x found %x", path, kvod.path)
+// 		}
+// 		// check that .salt file exists
+// 		saltFile := filepath.Join(path, saltFilename)
+// 		if _, err := os.Stat(saltFile); os.IsNotExist(err) {
+// 			t.Error("error .salt file not found")
+// 		}
+// 	}
+// }
 
-	keys, err := kvod.GetKeys()
-	if err != nil {
-		t.Error("error GetKeys ", err)
-	}
+// func TestPutAndGet(t *testing.T) {
+// 	kvod := Init(path, password)
 
-	if len(keys) != n {
-		t.Errorf("error get keys: expected %v found %v", n, len(keys))
-	}
-}
+// 	sampleUser := User{"test user", "test@user.org"}
 
-func TestDelete(t *testing.T) {
-	kvod := Init(path, password)
+// 	err := kvod.Put("1", sampleUser)
+// 	if err != nil {
+// 		t.Error("error Put ", err)
+// 	}
 
-	sampleUser := User{"test user", "test@user.org"}
+// 	var user User
+// 	err = kvod.Get("1", &user)
+// 	if err != nil {
+// 		t.Error("error Get ", err)
+// 	}
+// 	if !reflect.DeepEqual(sampleUser, user) {
+// 		t.Errorf("error put/get: expected %v found %v", sampleUser, user)
+// 	}
+// }
 
-	err := kvod.Put("1", sampleUser)
-	if err != nil {
-		t.Error("error Put ", err)
-	}
+// func TestGetKeys(t *testing.T) {
+// 	kvod := Init(path, password)
 
-	kvod.Delete("1")
+// 	sampleUser := User{"test user", "test@user.org"}
 
-	var user User
-	err = kvod.Get("1", &user)
-	// this should raise an error
-	if err == nil {
-		t.Error("error delete ", err)
-	}
-}
-func BenchmarkInit(b *testing.B) {
-	os.RemoveAll(path)
-	for i := 0; i < b.N; i++ {
-		Init(path, password)
-	}
-}
+// 	for i := 0; i < n; i++ {
+// 		kvod.Put(strconv.Itoa(i), sampleUser)
+// 	}
 
-func BenchmarkPut(b *testing.B) {
-	kvod := Init(path, password)
-	sampleUser := User{"test user", "test@user.org"}
-	for i := 0; i < b.N; i++ {
-		kvod.Put("1", sampleUser)
-	}
-}
+// 	keys, err := kvod.GetKeys()
+// 	if err != nil {
+// 		t.Error("error GetKeys ", err)
+// 	}
 
-func BenchmarkGet(b *testing.B) {
-	kvod := Init(path, password)
-	sampleUser := User{"test user", "test@user.org"}
-	kvod.Put("1", sampleUser)
-	var user User
+// 	if len(keys) != n {
+// 		t.Errorf("error get keys: expected %v found %v", n, len(keys))
+// 	}
+// }
 
-	for i := 0; i < b.N; i++ {
-		kvod.Get("1", &user)
-	}
-}
+// func TestDelete(t *testing.T) {
+// 	kvod := Init(path, password)
 
-func BenchmarkGetKeys(b *testing.B) {
-	kvod := Init(path, password)
+// 	sampleUser := User{"test user", "test@user.org"}
 
-	sampleUser := User{"test user", "test@user.org"}
+// 	err := kvod.Put("1", sampleUser)
+// 	if err != nil {
+// 		t.Error("error Put ", err)
+// 	}
 
-	for i := 0; i < n; i++ {
-		kvod.Put(strconv.Itoa(i), sampleUser)
-	}
-	for i := 0; i < b.N; i++ {
-		kvod.GetKeys()
-	}
-}
+// 	kvod.Delete("1")
+
+// 	var user User
+// 	err = kvod.Get("1", &user)
+// 	// this should raise an error
+// 	if err == nil {
+// 		t.Error("error delete ", err)
+// 	}
+// }
+// func BenchmarkInit(b *testing.B) {
+// 	os.RemoveAll(path)
+// 	for i := 0; i < b.N; i++ {
+// 		Init(path, password)
+// 	}
+// }
+
+// func BenchmarkPut(b *testing.B) {
+// 	kvod := Init(path, password)
+// 	sampleUser := User{"test user", "test@user.org"}
+// 	for i := 0; i < b.N; i++ {
+// 		kvod.Put("1", sampleUser)
+// 	}
+// }
+
+// func BenchmarkGet(b *testing.B) {
+// 	kvod := Init(path, password)
+// 	sampleUser := User{"test user", "test@user.org"}
+// 	kvod.Put("1", sampleUser)
+// 	var user User
+
+// 	for i := 0; i < b.N; i++ {
+// 		kvod.Get("1", &user)
+// 	}
+// }
+
+// func BenchmarkGetKeys(b *testing.B) {
+// 	kvod := Init(path, password)
+
+// 	sampleUser := User{"test user", "test@user.org"}
+
+// 	for i := 0; i < n; i++ {
+// 		kvod.Put(strconv.Itoa(i), sampleUser)
+// 	}
+// 	for i := 0; i < b.N; i++ {
+// 		kvod.GetKeys()
+// 	}
+// }

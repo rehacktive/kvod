@@ -7,37 +7,43 @@ import (
 	"github.com/rehacktive/kvod/kvod"
 )
 
-type user struct {
+type User struct {
 	Name  string
 	Email string
 }
 
 func main() {
 	db := kvod.Init("./db/", "whatever")
+	userContainer := kvod.CreateContainer[User](db, "users")
 
 	for i := 0; i < 10; i++ {
-		err := db.Put(strconv.Itoa(i), user{"name" + strconv.Itoa(i), "email"})
+		err := userContainer.Put(strconv.Itoa(i), User{"name" + strconv.Itoa(i), "email"})
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	var u user
-	err := db.Get("3", &u)
+	user, err := userContainer.Get("3")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(u)
+	fmt.Println(*user)
 
-	keys, err := db.GetKeys()
+	keys, err := userContainer.GetKeys()
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println(keys)
 
-	keys, _ = db.GetKeys()
-	for _, k := range keys {
-		err := db.Get(k, &u)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(k, "->", u)
+	userValues, err := userContainer.GetData()
+	if err != nil {
+		panic(err)
 	}
+	fmt.Println(userValues)
+
+	users, err := userContainer.GetAll()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(users)
 }
