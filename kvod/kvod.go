@@ -5,67 +5,95 @@ import (
 	"encoding/hex"
 	"io/ioutil"
 	"log"
+	"sort"
+	"sync"
 
 	"os"
 	"path/filepath"
 )
 
 const (
-	saltFilename = ".salt"
+	dbFilename = "data.db"
 )
+
+type dbDetails struct {
+	Salt []byte
+}
 
 // KVod basic struct
 type KVod struct {
 	path      string
 	encrypter crypto
+	details   dbDetails
 }
 
 type KVodContainer[T any] struct {
-	kvod *KVod
-	path string
+	kvod        *KVod
+	path        string
+	pathEncoded string
+	mu          sync.Mutex
 }
 
-// Init KVod struct
+// Init KVod struct0
 func Init(path string, password string) *KVod {
 	err := os.MkdirAll(path, 0770)
 	if err != nil {
 		log.Fatal(err)
 	}
-	saltFile := filepath.Join(path, saltFilename)
+	dbDetailsFile := filepath.Join(path, dbFilename)
 
 	salt, err := GenerateRandom(saltSize)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if _, err := os.Stat(saltFile); os.IsNotExist(err) {
-		err = write(saltFile, salt)
+	var details dbDetails
+
+	if _, err := os.Stat(dbDetailsFile); os.IsNotExist(err) {
+		details = dbDetails{
+			Salt: salt,
+		}
+		serializedDetails, err := serialize(details)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = write(dbDetailsFile, serializedDetails)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		salt, err = read(saltFile)
+		serializedDetails, err := read(dbDetailsFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = deserialize(serializedDetails, &details)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	crypto := InitCrypto(password, salt)
-	return &KVod{path, *crypto}
+	crypto := InitCrypto(password, details.Salt)
+	return &KVod{path, *crypto, details}
 }
 
 func CreateContainer[T any](kvod *KVod, containerPath string) *KVodContainer[T] {
-	err := os.MkdirAll(filepath.Join(kvod.path, containerPath), 0770)
+	pathEncoded := sha256Hex(containerPath)
+	err := os.MkdirAll(filepath.Join(kvod.path, pathEncoded), 0770)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return &KVodContainer[T]{
-		path: containerPath,
-		kvod: kvod,
+		path:        containerPath,
+		pathEncoded: pathEncoded,
+		kvod:        kvod,
+		mu:          sync.Mutex{},
 	}
 }
 
 // Put a struct using a string as key
 func (m *KVodContainer[T]) Put(key string, value T) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	filename := m.getFilename(key)
 
 	serializedValue, err := serialize(value)
@@ -89,6 +117,9 @@ func (m *KVodContainer[T]) Put(key string, value T) error {
 
 // Get a struct with key
 func (m *KVodContainer[T]) Get(key string) (*T, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	filename := m.getFilename(key)
 
 	data, err := read(filename)
@@ -120,20 +151,26 @@ func (m *KVod) getMapFromData(data []byte) (map[string][]byte, error) {
 
 // Delete a value by key
 func (m *KVodContainer[T]) Delete(key string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	return os.Remove(m.getFilename(key))
 }
 
 // GetKeys returns a slice of all keys available
 func (m *KVodContainer[T]) GetKeys() ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	var ret []string
 	// read all files, decrypt the content and get the key
-	files, err := ioutil.ReadDir(filepath.Join(m.kvod.path, m.path))
+	files, err := ioutil.ReadDir(filepath.Join(m.kvod.path, m.pathEncoded))
 	if err != nil {
 		return nil, err
 	}
 	for _, f := range files {
-		if f.Name() != saltFilename {
-			data, err := read(filepath.Join(m.kvod.path, m.path, f.Name()))
+		if f.Name() != dbFilename {
+			data, err := read(filepath.Join(m.kvod.path, m.pathEncoded, f.Name()))
 			if err != nil {
 				return nil, err
 			}
@@ -146,20 +183,24 @@ func (m *KVodContainer[T]) GetKeys() ([]string, error) {
 			}
 		}
 	}
+	sort.Strings(ret)
 	return ret, err
 }
 
 // GetAll returns a slice of all data available
 func (m *KVodContainer[T]) GetData() ([]T, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	var ret []T
 	// read all files, decrypt the content and get the data
-	files, err := ioutil.ReadDir(filepath.Join(m.kvod.path, m.path))
+	files, err := ioutil.ReadDir(filepath.Join(m.kvod.path, m.pathEncoded))
 	if err != nil {
 		return nil, err
 	}
 	for _, f := range files {
-		if f.Name() != saltFilename {
-			data, err := read(filepath.Join(m.kvod.path, m.path, f.Name()))
+		if f.Name() != dbFilename {
+			data, err := read(filepath.Join(m.kvod.path, m.pathEncoded, f.Name()))
 			if err != nil {
 				return nil, err
 			}
@@ -182,15 +223,18 @@ func (m *KVodContainer[T]) GetData() ([]T, error) {
 
 // GetAll returns a slice of all data available
 func (m *KVodContainer[T]) GetAll() (map[string]T, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	ret := make(map[string]T)
 	// read all files, decrypt the content and get the data
-	files, err := ioutil.ReadDir(filepath.Join(m.kvod.path, m.path))
+	files, err := ioutil.ReadDir(filepath.Join(m.kvod.path, m.pathEncoded))
 	if err != nil {
 		return nil, err
 	}
 	for _, f := range files {
-		if f.Name() != saltFilename {
-			data, err := read(filepath.Join(m.kvod.path, m.path, f.Name()))
+		if f.Name() != dbFilename {
+			data, err := read(filepath.Join(m.kvod.path, m.pathEncoded, f.Name()))
 			if err != nil {
 				return nil, err
 			}
@@ -212,8 +256,12 @@ func (m *KVodContainer[T]) GetAll() (map[string]T, error) {
 }
 
 func (m *KVodContainer[T]) getFilename(key string) string {
+	filename := sha256Hex(key)
+	return filepath.Join(m.kvod.path, m.pathEncoded, filename)
+}
+
+func sha256Hex(value string) string {
 	h := sha256.New()
-	h.Write([]byte(key))
-	filename := hex.EncodeToString(h.Sum(nil))
-	return filepath.Join(m.kvod.path, m.path, filename)
+	h.Write([]byte(value))
+	return hex.EncodeToString(h.Sum(nil))
 }

@@ -1,4 +1,4 @@
-## KVoD [Key/Value on Disk], a simple, encrypted key/value storage for Go
+## KVoD [Key/Value on Disk], a simple, encrypted key/value storage for Go (now using Generics)
 
 Just a sample:
 ```golang
@@ -9,11 +9,11 @@ type User struct {
 
 func main() {
 	store := kvod.Init("./db/", "secret")
+	userContainer := kvod.CreateContainer[User](db, "users")
 
-	store.Put("1", User{"a username", "user@memorya.org"})
+	userContainer.Put("1", User{"a username", "user@memorya.org"})
 
-	var user User
-	store.Get("1", &user)
+	user, _ := store.Get("1")
 	fmt.Println(user)
 
 	store.Delete("1")
@@ -23,7 +23,7 @@ The idea is to save each value to a file, under the specified path.
 The value is serialized using gob and encrypted (with AES256 in GCM mode, with PBKDF2 as key derivation function with 10000 iterations).
 
 The key is always a string.
-The value can be any type gob supports (https://blog.golang.org/gobs-of-data), so structs, strings, slices and more.
+The value can be any type gob supports (https://blog.golang.org/gobs-of-data), so structs, strings, slices and more, using Generics.
 
 #### TESTS
 ```
