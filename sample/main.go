@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/rehacktive/kvod/kvod"
+	"github.com/rehacktive/kvod"
 )
 
 type User struct {
