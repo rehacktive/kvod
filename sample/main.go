@@ -50,7 +50,6 @@ func main() {
 
 	for i := 0; i < 1000; i++ {
 		go func() {
-			time.Sleep(2 * time.Millisecond)
 			err := userContainer.Put("index", User{"name" + strconv.Itoa(i), "email"})
 			if err != nil {
 				panic(err)
@@ -58,7 +57,7 @@ func main() {
 		}()
 	}
 
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	user, err = userContainer.Get("index")
 	if err != nil {
 		panic(err)

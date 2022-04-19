@@ -13,10 +13,10 @@ func main() {
 
 	userContainer.Put("1", User{"a username", "user@memorya.org"})
 
-	user, _ := store.Get("1")
+	user, _ := userContainer.Get("1")
 	fmt.Println(user)
 
-	store.Delete("1")
+	userContainer.Delete("1")
 }
 ```
 The idea is to save each value to a file, under the specified path.
