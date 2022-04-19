@@ -81,6 +81,46 @@ func TestGetKeys(t *testing.T) {
 	}
 }
 
+func TestGetData(t *testing.T) {
+	kvod := Init(path, password)
+	container := CreateContainer[User](kvod, "users")
+
+	sampleUser := User{"test user", "test@user.org"}
+
+	for i := 0; i < n; i++ {
+		container.Put(strconv.Itoa(i), sampleUser)
+	}
+
+	data, err := container.GetData()
+	if err != nil {
+		t.Error("error GetKeys ", err)
+	}
+
+	if len(data) != n {
+		t.Errorf("error get keys: expected %v found %v", n, len(data))
+	}
+}
+
+func TestGetAll(t *testing.T) {
+	kvod := Init(path, password)
+	container := CreateContainer[User](kvod, "users")
+
+	sampleUser := User{"test user", "test@user.org"}
+
+	for i := 0; i < n; i++ {
+		container.Put(strconv.Itoa(i), sampleUser)
+	}
+
+	data, err := container.GetAll()
+	if err != nil {
+		t.Error("error GetKeys ", err)
+	}
+
+	if len(data) != n {
+		t.Errorf("error get keys: expected %v found %v", n, len(data))
+	}
+}
+
 func TestDelete(t *testing.T) {
 	kvod := Init(path, password)
 	container := CreateContainer[User](kvod, "users")
